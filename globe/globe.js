@@ -11,14 +11,7 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-var lat = 43.58200679999999;
-var lng = -80.26157789999999;
-
-// var lat = 0.0;
-// var lng = 0.0;
-
-var phi = (90 - lat) * Math.PI / 180;
-var theta = (180 - lng) * Math.PI / 180;
+var theNames = [];
 
 var DAT = DAT || {};
 
@@ -92,6 +85,8 @@ DAT.Globe = function(container, opts) {
   var rotation = { x: 0, y: 0 },
       // target = { x: Math.PI*3/2, y: Math.PI / 6.0 },
       target = { x: -Math.PI / 2, y: 0 },
+      // target = { x: -Math.PI / 2, y: 0 },
+      // target = { x: 0, y: 0 },
       targetOnDown = { x: 0, y: 0 };
 
   var distance = 100000, distanceTarget = 100000;
@@ -99,8 +94,6 @@ DAT.Globe = function(container, opts) {
   var PI_HALF = Math.PI / 2;
 
   function init() {
-    text = createText("Sarah");
-
     container.style.color = '#fff';
     container.style.font = '13px/20px Arial, sans-serif';
 
@@ -129,9 +122,8 @@ DAT.Globe = function(container, opts) {
         });
 
     mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.y = Math.PI;
+    mesh.rotation.y = -PI_HALF;
     scene.add(mesh);
-    scene.add(text.mesh)
 
     shader = Shaders['atmosphere'];
     uniforms = THREE.UniformsUtils.clone(shader.uniforms);
@@ -366,6 +358,10 @@ DAT.Globe = function(container, opts) {
     render();
   }
 
+
+  var DISTANCE = 300;
+  var RADIUS = 200;
+
   function render() {
     zoom(curZoomSpeed);
 
@@ -373,16 +369,18 @@ DAT.Globe = function(container, opts) {
     rotation.y += (target.y - rotation.y) * 0.1;
     distance += (distanceTarget - distance) * 0.3;
 
-    distance = 3000;
+    theNames.forEach(function (name) {
+      if (name.distance.position.z > RADIUS + 3) {
+        name.distance.position.z -= 3
+      }
+      // renderer.render(name.mesh)
+    })
 
     camera.position.x = distance * Math.sin(rotation.x) * Math.cos(rotation.y);
     camera.position.y = distance * Math.sin(rotation.y);
     camera.position.z = distance * Math.cos(rotation.x) * Math.cos(rotation.y);
 
     camera.lookAt(mesh.position);
-
-    text.distance.z -= 1;
-    text.mesh.updateMatrix();
 
     renderer.render(scene, camera);
   }
@@ -424,6 +422,21 @@ DAT.Globe = function(container, opts) {
   this.renderer = renderer;
   this.scene = scene;
 
+  window.plotNames = function (names, lat, lng) {
+    names.forEach(function (name) {
+      var obj = createText(name, {lat: lat, lng: lng})
+      theNames.push(obj)
+      scene.add(obj.mesh)
+    })
+  }
+
+  setTimeout(function () {window.plotNames(["Rio"], -22.905897, -43.208465)}, 300)
+  setTimeout(function () {window.plotNames(["Amsterdam"], 52.372201, 4.900674)}, 600)
+  setTimeout(function () {window.plotNames(["Accra"], 5.548154, -0.189686)}, 900)
+  setTimeout(function () {window.plotNames(["New York"], 40.704614, -74.013327)}, 1200)
+  setTimeout(function () {window.plotNames(["Melbourne"], -37.819071, 144.945034)}, 1500)
+  setTimeout(function () {window.plotNames(["Tokyo"], 35.715167, 139.730987)}, 1800)
+  setTimeout(function () {window.plotNames(["London"], 51.507354, -0.113339)}, 2100)
 
   return this;
 
@@ -443,8 +456,11 @@ DAT.Globe = function(container, opts) {
 
 
 function createText(text, geo) { //, lat, lng) {
-  var phi = (90 - lat) * Math.PI / 180;
-  var theta = (180 - lng) * Math.PI / 180;
+  var phi = (90 - geo.lat) * Math.PI / 180;
+  var theta = (180 - geo.lng) * Math.PI / 180;
+
+  var phi = geo.lat * Math.PI / 180;
+  var theta = geo.lng * Math.PI / 180;
 
   var
     height = 20,
@@ -453,15 +469,9 @@ function createText(text, geo) { //, lat, lng) {
 
     curveSegments = 4,
 
-    bevelThickness = 2,
-    bevelSize = 1.5,
-    bevelSegments = 3,
-    bevelEnabled = true,
-
     font = "optimer", // helvetiker, optimer, gentilis, droid sans, droid serif
     weight = "bold", // normal bold
     style = "normal"; // normal italic
-
 
 
   var material = new THREE.MeshBasicMaterial({
@@ -480,14 +490,6 @@ function createText(text, geo) { //, lat, lng) {
     font: font,
     weight: weight,
     style: style,
-
-    // bevelThickness: bevelThickness,
-    // bevelSize: bevelSize,
-    // bevelEnabled: bevelEnabled,
-
-    // material: 0,
-    // extrudeMaterial: 1
-
   });
 
   var textOrientation = new THREE.Object3D();
@@ -516,15 +518,17 @@ function createText(text, geo) { //, lat, lng) {
   // textMesh.position.y = 0;
   // textMesh.position.z = 0;
 
-  // textMesh.scale.set(.3, .3, .3)
+  var scale = 0.2;
+
+  textMesh.scale.set(scale, scale, scale)
 
   textGeo.computeBoundingBox();
   textGeo.computeVertexNormals();
 
-  mesh.position.copy({
-    x: -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
-    y: -0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ),
-    z: -0.5 * ( textGeo.boundingBox.max.z - textGeo.boundingBox.min.z ),
+  textMesh.position.copy({
+    x: scale * -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
+    y: scale * -0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ),
+    z: scale * -0.5 * ( textGeo.boundingBox.max.z - textGeo.boundingBox.min.z ),
   })
 
   // textOrientation.rotation.z = -Math.PI / 2;
@@ -539,12 +543,14 @@ function createText(text, geo) { //, lat, lng) {
   // textMesh.position.y = -centerOffset;
   // textMesh.position.x = hover;
 
-  distance.position.z = 250
+  distance.position.z = DISTANCE;
 
   // geoLat.rotation.x = theta;
   // geoLng.rotation.y = phi;
 
-  // textMesh.scale.set(0.1, 0.1, 0.1)
+  geoLat.rotation.x = -phi;
+  geoLng.rotation.y = theta;
+
 
   // textMesh.position.x = 200 * Math.sin(phi) * Math.cos(theta);
   // textMesh.position.y = 200 * Math.cos(phi);
@@ -578,3 +584,4 @@ function createText(text, geo) { //, lat, lng) {
 }
 
 };
+
