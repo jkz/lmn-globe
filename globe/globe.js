@@ -83,8 +83,8 @@ DAT.Globe = function(container, opts) {
 
   var mouse = { x: 0, y: 0 }, mouseOnDown = { x: 0, y: 0 };
   var rotation = { x: 0, y: 0 },
-      // target = { x: Math.PI*3/2, y: Math.PI / 6.0 },
-      target = { x: -Math.PI / 2, y: 0 },
+      target = { x: Math.PI*3/2, y: Math.PI / 6.0 },
+      // target = { x: -Math.PI / 2, y: 0 },
       // target = { x: -Math.PI / 2, y: 0 },
       // target = { x: 0, y: 0 },
       targetOnDown = { x: 0, y: 0 };
@@ -349,7 +349,7 @@ DAT.Globe = function(container, opts) {
 
   function zoom(delta) {
     distanceTarget -= delta;
-    distanceTarget = distanceTarget > 1000 ? 1000 : distanceTarget;
+    distanceTarget = distanceTarget > 2000 ? 1000 : distanceTarget;
     distanceTarget = distanceTarget < 350 ? 350 : distanceTarget;
   }
 
@@ -359,21 +359,38 @@ DAT.Globe = function(container, opts) {
   }
 
 
-  var DISTANCE = 300;
-  var RADIUS = 200;
+  var ATTACK = 30.0;
+  var DISTANCE = 300.0;
+  var RADIUS = 200.0;
+  var SCALE = 4.0;
+  var DECAY = 600.0;
 
   function render() {
     zoom(curZoomSpeed);
 
+    target.x += Math.PI / 3600;
+    target.y += Math.PI / 36000;
+
     rotation.x += (target.x - rotation.x) * 0.1;
     rotation.y += (target.y - rotation.y) * 0.1;
+
     distance += (distanceTarget - distance) * 0.3;
 
     theNames.forEach(function (name) {
-      if (name.distance.position.z > RADIUS + 3) {
-        name.distance.position.z -= 3
+      if (name.frame < ATTACK) {
+        name.distance.position.z -= (DISTANCE - RADIUS) / ATTACK
+
+        name.scale -= (SCALE - 1) / ATTACK;
+        centerScaleText(name.text, name.scale)
+        name.text.position.y -= name.index * 8;
+      } else if (name.frame < ATTACK + DECAY) {
+        name.material.opacity -= 1 / DECAY
+      } else {
+        scene.remove(name.mesh)
+        return
       }
-      // renderer.render(name.mesh)
+
+      name.frame++;
     })
 
     camera.position.x = distance * Math.sin(rotation.x) * Math.cos(rotation.y);
@@ -423,10 +440,12 @@ DAT.Globe = function(container, opts) {
   this.scene = scene;
 
   window.plotNames = function (names, lat, lng) {
-    names.forEach(function (name) {
-      var obj = createText(name, {lat: lat, lng: lng})
-      theNames.push(obj)
-      scene.add(obj.mesh)
+    names.forEach(function (name, index) {
+      var obj = createText(name, {lat: lat, lng: lng}, index)
+      setTimeout(function () {
+        theNames.push(obj)
+        scene.add(obj.mesh)
+      }, index * 300)
     })
   }
 
@@ -440,148 +459,87 @@ DAT.Globe = function(container, opts) {
 
   return this;
 
+  function centerScaleText(mesh, scale) {
+    var geo = mesh.geometry;
+    var box = geo.boundingBox;
 
-
-
-
-
-
-
-
-
-// var material = new THREE.MeshFaceMaterial( [
-//           new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
-//           new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.SmoothShading } ) // side
-//         ] );
-
-
-function createText(text, geo) { //, lat, lng) {
-  var phi = (90 - geo.lat) * Math.PI / 180;
-  var theta = (180 - geo.lng) * Math.PI / 180;
-
-  var phi = geo.lat * Math.PI / 180;
-  var theta = geo.lng * Math.PI / 180;
-
-  var
-    height = 20,
-    size = 70,
-    hover = 30,
-
-    curveSegments = 4,
-
-    font = "optimer", // helvetiker, optimer, gentilis, droid sans, droid serif
-    weight = "bold", // normal bold
-    style = "normal"; // normal italic
-
-
-  var material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,//0000,
-    vertexColors: THREE.FaceColors,
-    morphTargets: false
-  })
-
-  var color = colorFn(1);
-
-  var textGeo = new THREE.TextGeometry( text, {
-    size: size,
-    height: height,
-    curveSegments: curveSegments,
-
-    font: font,
-    weight: weight,
-    style: style,
-  });
-
-  var textOrientation = new THREE.Object3D();
-  var distance = new THREE.Object3D();
-  var geoLat = new THREE.Object3D();
-  var geoLng = new THREE.Object3D();
-  var mesh = new THREE.Object3D();
-
-  // for (var i = 0; i < textGeo.faces.length; i++) {
-  //   textGeo.faces[i].color = color;
-  // }
-
-  var textMesh = new THREE.Mesh( textGeo, material );
-  // textMesh.matrixAutoUpdate = false
-
-  // textMesh.position.x = centerOffset;
-  // textMesh.position.y = hover;
-  // textMesh.position.z = 0;
-
-  // textMesh.rotation.x = 0;
-  // textMesh.rotation.y = Math.PI * 2;
-  // textMesh.rotation.y = 0;
-  // textMesh.rotation.y = Math.PI;
-
-  // textMesh.position.x = 0;
-  // textMesh.position.y = 0;
-  // textMesh.position.z = 0;
-
-  var scale = 0.2;
-
-  textMesh.scale.set(scale, scale, scale)
-
-  textGeo.computeBoundingBox();
-  textGeo.computeVertexNormals();
-
-  textMesh.position.copy({
-    x: scale * -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
-    y: scale * -0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ),
-    z: scale * -0.5 * ( textGeo.boundingBox.max.z - textGeo.boundingBox.min.z ),
-  })
-
-  // textOrientation.rotation.z = -Math.PI / 2;
-  // // textMesh.rotation.z = -Math.PI / 2;
-
-
-  // geoLat.rotation.x = phi;// + Math.PI;
-  // geoLng.rotation.y = theta;// + Math.PI / 2;
-  // geoOrientation.rotation.z = -Math.PI / 2;
-  // geoOrientation.rotation.z = -Math.PI;
-
-  // textMesh.position.y = -centerOffset;
-  // textMesh.position.x = hover;
-
-  distance.position.z = DISTANCE;
-
-  // geoLat.rotation.x = theta;
-  // geoLng.rotation.y = phi;
-
-  geoLat.rotation.x = -phi;
-  geoLng.rotation.y = theta;
-
-
-  // textMesh.position.x = 200 * Math.sin(phi) * Math.cos(theta);
-  // textMesh.position.y = 200 * Math.cos(phi);
-  // textMesh.position.z = 200 * Math.sin(phi) * Math.sin(theta);
-
-  // point.lookAt(mesh.position);
-
-  // point.scale.z = Math.max( size, 0.1 ); // avoid non-invertible matrix
-  // point.updateMatrix();
-
-  //  if(point.matrixAutoUpdate){
-  //   point.updateMatrix();
-  // }
-  // subgeo.merge(point.geometry, point.matrix);
-
-  textOrientation.add( textMesh );
-  distance.add( textOrientation );
-  geoLat.add( distance );
-  geoLng.add( geoLat );
-  mesh.add( geoLng );
-
-  return {
-    textMesh: textMesh,
-    distance: distance,
-    geoLat: geoLat,
-    geoLng: geoLng,
-    mesh: mesh
+    mesh.scale.set(scale, scale, scale);
+    mesh.position.copy({
+      x: scale * -0.5 * ( box.max.x - box.min.x ),
+      y: scale * -0.5 * ( box.max.y - box.min.y ),
+      z: scale * -0.5 * ( box.max.z - box.min.z ),
+    });
   }
-  return geoOrientation;
-  return textMesh;
+
+  function createText(text, geo, index) {
+    var phi = geo.lat * Math.PI / 180;
+    var theta = geo.lng * Math.PI / 180;
+
+    var
+      height = 2,
+      size = 5,
+
+      curveSegments = 4,
+
+      font = "optimer", // helvetiker, optimer, gentilis, droid sans, droid serif
+      weight = "bold", // normal bold
+      style = "normal"; // normal italic
+
+
+    var material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,//0000,
+      vertexColors: THREE.FaceColors,
+      morphTargets: false
+    })
+    material.transparent = true;
+
+    var color = colorFn(1);
+
+    var textGeo = new THREE.TextGeometry( text, {
+      size: size,
+      height: height,
+      curveSegments: curveSegments,
+
+      font: font,
+      weight: weight,
+      style: style,
+    });
+
+    var textOrientation = new THREE.Object3D();
+    var distance = new THREE.Object3D();
+    var geoLat = new THREE.Object3D();
+    var geoLng = new THREE.Object3D();
+    var mesh = new THREE.Object3D();
+    var textMesh = new THREE.Mesh( textGeo, material );
+
+    textGeo.computeBoundingBox();
+    textGeo.computeVertexNormals();
+
+    centerScaleText(textMesh, SCALE);
+
+    distance.position.z = DISTANCE;
+
+    geoLat.rotation.x = -phi;
+    geoLng.rotation.y = theta;
+
+
+    textOrientation.add( textMesh );
+    distance.add( textOrientation );
+    geoLat.add( distance );
+    geoLng.add( geoLat );
+    mesh.add( geoLng );
+
+    return {
+      text: textMesh,
+      distance: distance,
+      lat: geoLat,
+      lng: geoLng,
+      mesh: mesh,
+      scale: SCALE,
+      frame: 0,
+      index: index,
+      material: material
+    }
+  }
+
 }
-
-};
-
