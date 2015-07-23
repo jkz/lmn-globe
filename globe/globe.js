@@ -11,11 +11,20 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
+var lat = 43.58200679999999;
+var lng = -80.26157789999999;
+
+// var lat = 0.0;
+// var lng = 0.0;
+
+var phi = (90 - lat) * Math.PI / 180;
+var theta = (180 - lng) * Math.PI / 180;
+
 var DAT = DAT || {};
 
 DAT.Globe = function(container, opts) {
   opts = opts || {};
-  
+
   var colorFn = opts.colorFn || function(x) {
     var c = new THREE.Color();
     c.setHSL( ( 0.6 - ( x * 0.5 ) ), 1.0, 0.5 );
@@ -68,6 +77,9 @@ DAT.Globe = function(container, opts) {
     }
   };
 
+  //JESSE
+  var text;
+
   var camera, scene, renderer, w, h;
   var mesh, atmosphere, point;
 
@@ -78,7 +90,8 @@ DAT.Globe = function(container, opts) {
 
   var mouse = { x: 0, y: 0 }, mouseOnDown = { x: 0, y: 0 };
   var rotation = { x: 0, y: 0 },
-      target = { x: Math.PI*3/2, y: Math.PI / 6.0 },
+      // target = { x: Math.PI*3/2, y: Math.PI / 6.0 },
+      target = { x: -Math.PI / 2, y: 0 },
       targetOnDown = { x: 0, y: 0 };
 
   var distance = 100000, distanceTarget = 100000;
@@ -86,6 +99,7 @@ DAT.Globe = function(container, opts) {
   var PI_HALF = Math.PI / 2;
 
   function init() {
+    text = createText("Sarah");
 
     container.style.color = '#fff';
     container.style.font = '13px/20px Arial, sans-serif';
@@ -117,6 +131,7 @@ DAT.Globe = function(container, opts) {
     mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.y = Math.PI;
     scene.add(mesh);
+    scene.add(text.mesh)
 
     shader = Shaders['atmosphere'];
     uniforms = THREE.UniformsUtils.clone(shader.uniforms);
@@ -187,7 +202,7 @@ DAT.Globe = function(container, opts) {
         for (i = 0; i < data.length; i += step) {
           lat = data[i];
           lng = data[i + 1];
-//        size = data[i + 2];
+          size = data[i + 2];
           color = colorFnWrapper(data,i);
           size = 0;
           addPoint(lat, lng, size, color, this._baseGeometry);
@@ -235,6 +250,7 @@ DAT.Globe = function(container, opts) {
             this._baseGeometry.morphTargets.push({'name': 'morphPadding'+i, vertices: this._baseGeometry.vertices});
           }
         }
+
         this.points = new THREE.Mesh(this._baseGeometry, new THREE.MeshBasicMaterial({
               color: 0xffffff,
               vertexColors: THREE.FaceColors,
@@ -357,11 +373,16 @@ DAT.Globe = function(container, opts) {
     rotation.y += (target.y - rotation.y) * 0.1;
     distance += (distanceTarget - distance) * 0.3;
 
+    distance = 3000;
+
     camera.position.x = distance * Math.sin(rotation.x) * Math.cos(rotation.y);
     camera.position.y = distance * Math.sin(rotation.y);
     camera.position.z = distance * Math.cos(rotation.x) * Math.cos(rotation.y);
 
     camera.lookAt(mesh.position);
+
+    text.distance.z -= 1;
+    text.mesh.updateMatrix();
 
     renderer.render(scene, camera);
   }
@@ -403,7 +424,157 @@ DAT.Globe = function(container, opts) {
   this.renderer = renderer;
   this.scene = scene;
 
+
   return this;
 
-};
 
+
+
+
+
+
+
+
+
+// var material = new THREE.MeshFaceMaterial( [
+//           new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
+//           new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.SmoothShading } ) // side
+//         ] );
+
+
+function createText(text, geo) { //, lat, lng) {
+  var phi = (90 - lat) * Math.PI / 180;
+  var theta = (180 - lng) * Math.PI / 180;
+
+  var
+    height = 20,
+    size = 70,
+    hover = 30,
+
+    curveSegments = 4,
+
+    bevelThickness = 2,
+    bevelSize = 1.5,
+    bevelSegments = 3,
+    bevelEnabled = true,
+
+    font = "optimer", // helvetiker, optimer, gentilis, droid sans, droid serif
+    weight = "bold", // normal bold
+    style = "normal"; // normal italic
+
+
+
+  var material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,//0000,
+    vertexColors: THREE.FaceColors,
+    morphTargets: false
+  })
+
+  var color = colorFn(1);
+
+  var textGeo = new THREE.TextGeometry( text, {
+    size: size,
+    height: height,
+    curveSegments: curveSegments,
+
+    font: font,
+    weight: weight,
+    style: style,
+
+    // bevelThickness: bevelThickness,
+    // bevelSize: bevelSize,
+    // bevelEnabled: bevelEnabled,
+
+    // material: 0,
+    // extrudeMaterial: 1
+
+  });
+
+  var textOrientation = new THREE.Object3D();
+  var distance = new THREE.Object3D();
+  var geoLat = new THREE.Object3D();
+  var geoLng = new THREE.Object3D();
+  var mesh = new THREE.Object3D();
+
+  // for (var i = 0; i < textGeo.faces.length; i++) {
+  //   textGeo.faces[i].color = color;
+  // }
+
+  var textMesh = new THREE.Mesh( textGeo, material );
+  // textMesh.matrixAutoUpdate = false
+
+  // textMesh.position.x = centerOffset;
+  // textMesh.position.y = hover;
+  // textMesh.position.z = 0;
+
+  // textMesh.rotation.x = 0;
+  // textMesh.rotation.y = Math.PI * 2;
+  // textMesh.rotation.y = 0;
+  // textMesh.rotation.y = Math.PI;
+
+  // textMesh.position.x = 0;
+  // textMesh.position.y = 0;
+  // textMesh.position.z = 0;
+
+  // textMesh.scale.set(.3, .3, .3)
+
+  textGeo.computeBoundingBox();
+  textGeo.computeVertexNormals();
+
+  mesh.position.copy({
+    x: -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x ),
+    y: -0.5 * ( textGeo.boundingBox.max.y - textGeo.boundingBox.min.y ),
+    z: -0.5 * ( textGeo.boundingBox.max.z - textGeo.boundingBox.min.z ),
+  })
+
+  // textOrientation.rotation.z = -Math.PI / 2;
+  // // textMesh.rotation.z = -Math.PI / 2;
+
+
+  // geoLat.rotation.x = phi;// + Math.PI;
+  // geoLng.rotation.y = theta;// + Math.PI / 2;
+  // geoOrientation.rotation.z = -Math.PI / 2;
+  // geoOrientation.rotation.z = -Math.PI;
+
+  // textMesh.position.y = -centerOffset;
+  // textMesh.position.x = hover;
+
+  distance.position.z = 250
+
+  // geoLat.rotation.x = theta;
+  // geoLng.rotation.y = phi;
+
+  // textMesh.scale.set(0.1, 0.1, 0.1)
+
+  // textMesh.position.x = 200 * Math.sin(phi) * Math.cos(theta);
+  // textMesh.position.y = 200 * Math.cos(phi);
+  // textMesh.position.z = 200 * Math.sin(phi) * Math.sin(theta);
+
+  // point.lookAt(mesh.position);
+
+  // point.scale.z = Math.max( size, 0.1 ); // avoid non-invertible matrix
+  // point.updateMatrix();
+
+  //  if(point.matrixAutoUpdate){
+  //   point.updateMatrix();
+  // }
+  // subgeo.merge(point.geometry, point.matrix);
+
+  textOrientation.add( textMesh );
+  distance.add( textOrientation );
+  geoLat.add( distance );
+  geoLng.add( geoLat );
+  mesh.add( geoLng );
+
+  return {
+    textMesh: textMesh,
+    distance: distance,
+    geoLat: geoLat,
+    geoLng: geoLng,
+    mesh: mesh
+  }
+  return geoOrientation;
+  return textMesh;
+}
+
+};
